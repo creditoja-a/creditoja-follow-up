@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crédito Já — Follow-up System</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f5f5f5; color: #333; }
+    
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    
+    header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    header h1 { font-size: 28px; margin-bottom: 5px; }
+    header p { opacity: 0.9; }
+    
+    nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    nav button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s; background: white; color: #667eea; }
+    nav button.active { background: #667eea; color: white; }
+    nav button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    
+    .page { display: none; }
+    .page.active { display: block; }
+    
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .stat-card h3 { color: #667eea; font-size: 14px; margin-bottom: 10px; text-transform: uppercase; }
+    .stat-card .value { font-size: 32px; font-weight: bold; color: #333; }
+    
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    table th { background: #667eea; color: white; padding: 15px; text-align: left; font-weight: 600; }
+    table td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+    table tr:hover { background: #f9f9f9; }
+    
+    .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+    .search-box input, .search-box select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .search-box button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .modal-close { float: right; cursor: pointer; font-size: 24px; color: #999; }
+    
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s; }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-primary:hover { background: #5568d3; }
+    .btn-danger { background: #f56565; color: white; }
+    .btn-danger:hover { background: #e53e3e; }
+    .btn-success { background: #48bb78; color: white; }
+    .btn-success:hover { background: #38a169; }
+    
+    .log-line { font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; padding: 5px; border-bottom: 1px solid #eee; }
+    .log-line.info { color: #48bb78; }
+    .log-line.warn { color: #ed8936; }
+    .log-line.error { color: #f56565; }
+    
+    .countdown { font-size: 18px; font-weight: bold; color: #667eea; margin-bottom: 20px; }
+    
+    @media (max-width: 768px) {
+      .stats { grid-template-columns: 1fr; }
+      nav { flex-direction: column; }
+      nav button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 Crédito Já — Follow-up System</h1>
+      <p>Automação de acompanhamento de portabilidade consignada</p>
+    </header>
+
+    <nav>
+      <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+      <button class="nav-btn" data-page="clientes">Clientes</button>
+      <button class="nav-btn" data-page="mensagens">Mensagens</button>
+      <button class="nav-btn" data-page="import">Importar</button>
+      <button class="nav-btn" data-page="logs">Logs</button>
+      <button class="nav-btn" data-page="config">Configurações</button>
+    </nav>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="page active">
+      <div class="stats" id="statsContainer"></div>
+      <div class="countdown" id="countdown"></div>
+      <h2>Últimas Mensagens</h2>
+      <table id="messagesTable">
+        <thead><tr><th>Telefone</th><th>Tipo</th><th>Status</th><th>Data</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- CLIENTES -->
+    <div id="clientes" class="page">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Buscar por nome, telefone ou CPF...">
+        <select id="statusFilter">
+          <option value="">Todos os status</option>
+          <option value="aguarda_retorno_saldo">Aguarda Retorno</option>
+          <option value="aguarda_desbloqueio">Aguarda Desbloqueio</option>
+          <option value="pendente_formalizacao">Pendente Formalização</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <button onclick="loadClientes()">Buscar</button>
+      </div>
+      <table id="clientesTable">
+        <thead><tr><th>Nome</th><th>Telefone</th><th>CPF</th><th>Status</th><th>Retorno</th><th>Ações</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- MENSAGENS -->
+    <div id="mensagens" class="page">
+      <table id="messagesFullTable">
+        <thead><tr><th>Telefone</th><th>Tipo</th><th>Status</th><th>Data</th><th>Mensagem</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- IMPORTAR -->
+    <div id="import" class="page">
+      <h2>Importar Clientes</h2>
+      <div class="form-group">
+        <label>Arquivo XLSX/CSV</label>
+        <input type="file" id="fileInput" accept=".xlsx,.csv">
+        <button class="btn btn-primary" onclick="importFile()">Importar Arquivo</button>
+      </div>
+      <div class="form-group">
+        <label>Google Sheets ID</label>
+        <input type="text" id="sheetId" placeholder="ID da planilha">
+      </div>
+      <div class="form-group">
+        <label>Nome da Aba</label>
+        <input type="text" id="sheetName" placeholder="Nome da aba" value="Sheet1">
+        <button class="btn btn-primary" onclick="importSheets()">Importar Google Sheets</button>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div id="logs" class="page">
+      <button class="btn btn-primary" onclick="loadLogs()">Atualizar Logs</button>
+      <div id="logsContainer" style="margin-top: 20px; background: white; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 600px; overflow-y: auto;"></div>
+    </div>
+
+    <!-- CONFIGURAÇÕES -->
+    <div id="config" class="page">
+      <h2>Configurações</h2>
+      <div class="form-group">
+        <label>Venditore Token</label>
+        <input type="password" id="vendToken" placeholder="Token da Venditore">
+      </div>
+      <div class="form-group">
+        <label>Channel ID</label>
+        <input type="text" id="channelId" placeholder="ID do canal">
+      </div>
+      <div class="form-group">
+        <label>Número de Teste</label>
+        <input type="text" id="testNumber" placeholder="Número para teste">
+      </div>
+      <div class="form-group">
+        <label>Número de Relatório</label>
+        <input type="text" id="reportNumber" placeholder="Número para relatório">
+      </div>
+      <button class="btn btn-primary" onclick="saveConfig()">Salvar</button>
+      <button class="btn btn-success" onclick="testConnection()">Testar Conexão</button>
+    </div>
+  </div>
+
+  <script>
+    // Navegação
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.page).classList.add('active');
+      });
+    });
+
+    // API calls
+    async function apiCall(endpoint, method = 'GET', body = null) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = JSON.stringify(body);
+      const res = await fetch(endpoint, options);
+      return res.json();
+    }
+
+    // Dashboard
+    async function loadDashboard() {
+      const stats = await apiCall('/api/stats');
+      const html = `
+        <div class="stat-card"><h3>Total de Clientes</h3><div class="value">${stats.total}</div></div>
+        <div class="stat-card"><h3>Aguardando Retorno</h3><div class="value">${stats.aguarda_retorno}</div></div>
+        <div class="stat-card"><h3>Retorno Hoje</h3><div class="value">${stats.retorno_hoje}</div></div>
+        <div class="stat-card"><h3>Pend. Formalização</h3><div class="value">${stats.pendente_formalizacao}</div></div>
+        <div class="stat-card"><h3>Enviadas Hoje</h3><div class="value">${stats.enviadas_hoje}</div></div>
+        <div class="stat-card"><h3>Falhas Hoje</h3><div class="value">${stats.falhas_hoje}</div></div>
+      `;
+      document.getElementById('statsContainer').innerHTML = html;
+
+      const messages = await apiCall('/api/messages?limit=10');
+      const tbody = document.querySelector('#messagesTable tbody');
+      tbody.innerHTML = messages.map(m => `
+        <tr>
+          <td>${m.phone}</td>
+          <td>${m.messageType}</td>
+          <td><span style="color: ${m.status === 'sent' ? '#48bb78' : '#f56565'}">${m.status}</span></td>
+          <td>${new Date(m.sentAt).toLocaleString('pt-BR')}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Clientes
+    async function loadClientes() {
+      const search = document.getElementById('searchInput').value;
+      const status = document.getElementById('statusFilter').value;
+      const clients = await apiCall(`/api/clients?search=${search}&status=${status}`);
+      const tbody = document.querySelector('#clientesTable tbody');
+      tbody.innerHTML = clients.map(c => `
+        <tr>
+          <td>${c.name}</td>
+          <td>${c.phone}</td>
+          <td>${c.cpf}</td>
+          <td>${c.status}</td>
+          <td>${c.expectedReturnDate ? new Date(c.expectedReturnDate).toLocaleDateString('pt-BR') : '-'}</td>
+          <td><button class="btn btn-primary" onclick="editClient(${c.id})">Editar</button></td>
+        </tr>
+      `).join('');
+    }
+
+    // Mensagens
+    async function loadMessages() {
+      const messages = await apiCall('/api/messages?limit=100');
+      const tbody = document.querySelector('#messagesFullTable tbody');
+      tbody.innerHTML = messages.map(m => `
+        <tr>
+          <td>${m.phone}</td>
+          <td>${m.messageType}</td>
+          <td><span style="color: ${m.status === 'sent' ? '#48bb78' : '#f56565'}">${m.status}</span></td>
+          <td>${new Date(m.sentAt).toLocaleString('pt-BR')}</td>
+          <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">${m.message}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Importação
+    async function importFile() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) return alert('Selecione um arquivo');
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/import/file', { method: 'POST', body: formData });
+      const result = await res.json();
+      alert(`Importado: ${result.imported} | Erros: ${result.errors}`);
+    }
+
+    async function importSheets() {
+      const sheetId = document.getElementById('sheetId').value;
+      const sheetName = document.getElementById('sheetName').value;
+      const result = await apiCall('/api/import/sheets', 'POST', { sheetId, sheetName });
+      alert(`Importado: ${result.imported} | Erros: ${result.errors}`);
+    }
+
+    // Logs
+    async function loadLogs() {
+      const logs = await apiCall('/api/logs');
+      const container = document.getElementById('logsContainer');
+      container.innerHTML = logs.map(log => {
+        const level = log.includes('[INFO]') ? 'info' : log.includes('[ERROR]') ? 'error' : 'warn';
+        return `<div class="log-line ${level}">${log}</div>`;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Configurações
+    async function saveConfig() {
+      alert('Configurações salvas (demo)');
+    }
+
+    async function testConnection() {
+      const result = await apiCall('/api/test-connection', 'POST');
+      alert(result.success ? '✅ Conexão OK' : '❌ Falha na conexão');
+    }
+
+    // Inicialização
+    loadDashboard();
+    setInterval(loadDashboard, 30000);
+  </script>
+</body>
+</html>
